@@ -2,10 +2,16 @@ import csv
 import numpy as np
 import torch
 from Bio.PDB import PDBParser
+from Bio.PDB.PDBExceptions import PDBConstructionException
 import esm
+
 from torch_geometric.data import Batch
 from torch_geometric.data import Data
 from torch.utils.data import Dataset
+
+from tqdm import tqdm
+
+from my_utils import pmap_single
 
 
 def load_GO_annot(filename):
@@ -129,10 +135,18 @@ restype_1to3 = {
 
 restype_3to1 = {v: k for k, v in restype_1to3.items()}
 
+def get_sequences_and_edges_single(pdb_path, pdb_parser=None):
+    if pdb_parser is None:
+        pdb_parser = PDBParser()
+    try:
+        struct = pdb_parser.get_structure("x", pdb_path)
+    except ValueError as e:
+        print(f"got error {e} for path {pdb_path}, returning None")
+        return None, None
+    except PDBConstructionException as e:
+        print(f"got error {e} for path {pdb_path}, returning None")
+        return None, None
 
-def process_pdb(pdb_path, device="cpu"):
-    parser = PDBParser()
-    struct = parser.get_structure("x", pdb_path)
     model = struct[0]
     chain_id = list(model.child_dict.keys())[0]
     chain = model[chain_id]
@@ -147,38 +161,70 @@ def process_pdb(pdb_path, device="cpu"):
         except:
             Ca_array.append([np.nan, np.nan, np.nan])
             sequence += "X"
-
+    if len(seq_idx_list) >= 1000:
+        print(len(seq_idx_list))
     Ca_array = np.array(Ca_array)
     resi_num = Ca_array.shape[0]
     if resi_num <= 1:
-        return None
+        return None, None
     G = np.dot(Ca_array, Ca_array.T)
     H = np.tile(np.diag(G), (resi_num, 1))
     dismap = (H + H.T - 2 * G) ** 0.5
 
-    # device = f"cuda:{device_id}"
-    esm_model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
-    batch_converter = alphabet.get_batch_converter()
-    esm_model = esm_model.to(device)
-    esm_model.eval()
-
-    batch_labels, batch_strs, batch_tokens = batch_converter([("tmp", sequence[:1022])])
-    batch_tokens = batch_tokens.to(device)
-    with torch.no_grad():
-        results = esm_model(batch_tokens, repr_layers=[33], return_contacts=True)
-        token_representations = (
-            results["representations"][33][0].cpu().numpy().astype(np.float16)
-        )
-        esm_embed = token_representations[1 : len(sequence) + 1]
-
     row, col = np.where(dismap <= 10)
     edge = [row, col]
-    graph = protein_graph(
-        sequence, edge, esm_embed
-    )  # Assuming protein_graph is defined elsewhere
+    return sequence, edge
 
-    return graph
 
+def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=128):
+    parser = PDBParser()
+    seqs_and_edges = pmap_single(get_sequences_and_edges_single, pdb_paths, n_jobs=n_jobs, verbose=1, pdb_parser=parser)
+
+    bad_paths  = []
+    seqs_filt = []
+    edges_filt = []
+    for i, (seq, edge) in enumerate(seqs_and_edges):
+        if seq is None:
+            bad_paths.append(pdb_paths[i])
+            continue
+        seqs_filt.append(seq)
+        edges_filt.append(edge)
+    print(f"dropped {len(seqs_and_edges) - len(seqs_filt)} proteins with bad inputs")
+
+    if esm_path is None:
+        esm_model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
+    else:
+        esm_model, alphabet = esm.pretrained.load_model_and_alphabet(esm_path)
+    esm_model.eval()
+    esm_model = esm_model.to(device)
+    batch_converter = alphabet.get_batch_converter(truncation_seq_length=1022)
+
+    num_batches = (len(seqs_filt) + batch_size - 1) // batch_size
+
+    embeddings = []
+    for batch_num in tqdm(range(num_batches)):
+        start = batch_num * batch_size
+        end = min(len(seqs_filt), (batch_num+1)*batch_size)
+        batch_seqs = seqs_filt[start:end]
+        _, _, batch_tokens = batch_converter(
+            [(f"seq_{i}", seq) for i, seq in enumerate(batch_seqs)],
+        )
+        print(batch_tokens.shape)
+        with torch.no_grad():
+            results = esm_model(batch_tokens.to(device), repr_layers=[33], return_contacts=False)
+            token_representations = (
+                results["representations"][33][0].detach().cpu()
+            )
+        embeddings.append(token_representations)
+    embeddings = torch.cat(embeddings).numpy()
+
+    graphs = []
+    for i in range(len(seqs_filt)):
+        graphs.append(protein_graph(
+            seqs_filt[i], edges_filt[i], embeddings[i, 1: min(len(seqs_filt[i])+1, 1022)]
+        ))
+
+    return graphs, bad_paths
 
 def collate_fn(batch):
     graphs, y_trues = map(list, zip(*batch))
