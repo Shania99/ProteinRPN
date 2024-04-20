@@ -104,7 +104,7 @@ def protein_graph(sequence, edge_index, esm_embed):
     # if AF_embed == None:
     #     data = Data(x=seq_code, edge_index=edge_index)
     # else:
-    data = Data(x=torch.from_numpy(esm_embed), edge_index=edge_index, native_x=seq_code)
+    data = Data(x=esm_embed, edge_index=edge_index, native_x=seq_code)
     return data
 
 
@@ -192,7 +192,8 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
     print(f"dropped {len(seqs_and_edges) - len(seqs_filt)} proteins with bad inputs")
 
     if esm_path is None:
-        esm_model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
+        # esm_model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
+        esm_model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
     else:
         esm_model, alphabet = esm.pretrained.load_model_and_alphabet(esm_path)
     esm_model.eval()
@@ -213,15 +214,18 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
         with torch.no_grad():
             results = esm_model(batch_tokens.to(device), repr_layers=[33], return_contacts=False)
             token_representations = (
-                results["representations"][33][0].detach().cpu()
+                results["representations"][33].detach().cpu()
             )
         embeddings.append(token_representations)
-    embeddings = torch.cat(embeddings).numpy()
+    embeddings = torch.cat(embeddings)
+    # embeddings = torch.cat(embeddings).numpy()
 
     graphs = []
+    print(len(seqs_filt), len(edges_filt), len(embeddings))
     for i in range(len(seqs_filt)):
+        # print(i)
         graphs.append(protein_graph(
-            seqs_filt[i], edges_filt[i], embeddings[i, 1: min(len(seqs_filt[i])+1, 1022)]
+            seqs_filt[i], edges_filt[i], embeddings[i][1: min(len(seqs_filt[i])+1, 1022)]
         ))
 
     return graphs, bad_paths
