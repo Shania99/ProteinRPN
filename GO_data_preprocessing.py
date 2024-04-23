@@ -216,8 +216,8 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
             token_representations = (
                 results["representations"][33].detach().cpu()
             )
-        embeddings.append(token_representations)
-    embeddings = torch.cat(embeddings)
+        embeddings.extend(token_representations.numpy())
+    # embeddings = torch.cat(embeddings)
     # embeddings = torch.cat(embeddings).numpy()
 
     graphs = []
@@ -225,7 +225,7 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
     for i in range(len(seqs_filt)):
         # print(i)
         graphs.append(protein_graph(
-            seqs_filt[i], edges_filt[i], embeddings[i][1: min(len(seqs_filt[i])+1, 1022)]
+            seqs_filt[i], edges_filt[i], torch.tensor(embeddings[i][1: min(len(seqs_filt[i])+1, 1022)])
         ))
 
     return graphs, bad_paths
