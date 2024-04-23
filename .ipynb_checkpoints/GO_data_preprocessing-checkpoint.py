@@ -97,6 +97,8 @@ def aa2idx(seq):
 
 def protein_graph(sequence, edge_index, esm_embed):
     seq_code = aa2idx(sequence)
+    # print("Inside protein_graph esm_embed.shape, sequence.shape", esm_embed.shape, seq_code.shape)
+    # assert esm_embed.shape[0] == seq_code.shape[0]
     seq_code = torch.IntTensor(seq_code)
     # add edge to pairs whose distances are more possible under 8.25
     # row, col = edge_index
@@ -163,8 +165,11 @@ def get_sequences_and_edges_single(pdb_path, pdb_parser=None):
             sequence += "X"
     if len(seq_idx_list) >= 1000:
         print(len(seq_idx_list))
-    Ca_array = np.array(Ca_array)
+    ######### TRUNCATE Ca_array to 1022 due to ESM Length
+    Ca_array = np.array(Ca_array)[:1022]
     resi_num = Ca_array.shape[0]
+    print("resi_num", resi_num)
+    print("len ca array", Ca_array.shape)
     if resi_num <= 1:
         return None, None
     G = np.dot(Ca_array, Ca_array.T)
@@ -173,7 +178,12 @@ def get_sequences_and_edges_single(pdb_path, pdb_parser=None):
 
     row, col = np.where(dismap <= 10)
     edge = [row, col]
-    return sequence, edge
+    print('Max index in edge_index:', np.array(edge).max())
+    print('Number of nodes:', len(Ca_array))
+    
+    # Ensure no indices are greater than or equal to the number of nodes
+    assert np.array(edge).max() < len(Ca_array), "edge_index contains out-of-bounds indices"
+    return sequence[:1022], edge
 
 
 def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=128):
@@ -207,6 +217,7 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
         start = batch_num * batch_size
         end = min(len(seqs_filt), (batch_num+1)*batch_size)
         batch_seqs = seqs_filt[start:end]
+        # print("batch seqs", batch_seqs)
         _, _, batch_tokens = batch_converter(
             [(f"seq_{i}", seq) for i, seq in enumerate(batch_seqs)],
         )
@@ -217,17 +228,21 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
                 results["representations"][33].detach().cpu()
             )
         embeddings.append(token_representations)
-    embeddings = torch.cat(embeddings)
+    try:    
+        embeddings = torch.cat(embeddings)
+    except:
+        print()
     # embeddings = torch.cat(embeddings).numpy()
 
     graphs = []
     print(len(seqs_filt), len(edges_filt), len(embeddings))
     for i in range(len(seqs_filt)):
         # print(i)
+        # print("shape of embed", embeddings[i][1: min(len(seqs_filt[i])+1, 1022)].shape)
         graphs.append(protein_graph(
-            seqs_filt[i], edges_filt[i], embeddings[i][1: min(len(seqs_filt[i])+1, 1022)]
+            seqs_filt[i], edges_filt[i], embeddings[i][1: min(len(seqs_filt[i])+1, 1022+1)]
         ))
-
+        # print("details of last appended graph to check esm_embedding dimension", graphs[-1])
     return graphs, bad_paths
 
 def collate_fn(batch):
@@ -259,9 +274,12 @@ class GoTermDataset(Dataset):
         self.graph_list = torch.load(graph_list_file)
 
         # self.pdbch_list = torch.load(os.path.join(self.processed_dir, f"{set_type}_pdbch.pt"))[f"{set_type}_pdbch"]
+        # print("self.graph_list", self.graph_list)
+        # print("self.pdb_id_list", self.pdb_id_list)
         self.y_true = np.stack(
             [prot2annot[pdb_c][self.task] for pdb_c in self.pdb_id_list]
         )
+        
         self.y_true = torch.tensor(self.y_true)
 
     def __getitem__(self, idx):

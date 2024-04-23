@@ -1,0 +1,7 @@
+pdb_files/*
+processed/*
+trained_model_weights/*
+*.ipynb
+.ipynb_checkpoints/
+heal_changes.diff
+__pycache__/
