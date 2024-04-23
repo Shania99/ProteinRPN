@@ -1,6 +1,6 @@
 pdb_files/*
 processed/*
 trained_model_weights/*
-test.ipynb
+*.ipynb
 heal_changes.diff
 __pycache__/

@@ -25,8 +25,10 @@ def get_proposed_candidates(
     # print("\n\n", node_list[0])
     # print("\n\n", type(node_list[0]))
 
-    node_score_list = [l.detach().numpy() for l in node_scores_list]
-    node_list = [l.detach().numpy() for l in node_list]
+    # node_score_list = [l.detach().numpy() for l in node_scores_list]
+    node_score_list = [l.detach().cpu().numpy() for l in node_scores_list]
+    # node_list = [l.detach().numpy() for l in node_list]
+    node_list = [l.detach().cpu().numpy() for l in node_list]
     # print("printing values", node_score_list)
     numpy_score_list = np.array(node_score_list, dtype=object)
     numpy_node_list = np.array(node_list, dtype=object)
@@ -38,7 +40,7 @@ def get_proposed_candidates(
     print("number of nodes in protein graph", len(node_scores_list))
     selected = (
         func_probability > func_threshold
-    ).flatten()  ## these are the nodes whose corresponding anchors have a high probab of being functional
+    ).detach().cpu().flatten()  ## these are the nodes whose corresponding anchors have a high probab of being functional
     # print("in grpn processing selected nodes based on probab", selected)
     score_list_filtered = numpy_score_list[selected]  # list of arrays
     node_list_filtered = numpy_node_list[

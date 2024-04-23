@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(0, "/Users/shaniamitra/Downloads/Struct2Func_v-old/HEAL")
+sys.path.insert(0, "./HEAL")
 
 import os
 import warnings
@@ -22,30 +22,37 @@ from GRPN_processing import get_proposed_candidates_batches
 
 warnings.filterwarnings("ignore")  ## need to change to output vector of 0 and 1
 
+pdb_data_path = "../datasets/GeneOntology" ## add in old file too
+
+
 train_path = (
-    "/Users/shaniamitra/Downloads/Struct2Func_v-old/datasets/GeneOntology/train/"
+    f"{pdb_data_path}/train/"
 )
 # train_pdb = [os.path.abspath(os.path.join(train_path, p)) for p in os.listdir(train_path)]
 train_pdb = [
     os.path.join(pth, f) for pth, dirs, files in os.walk(train_path) for f in files
 ]
 
-val_path = "/Users/shaniamitra/Downloads/Struct2Func_v-old/datasets/GeneOntology/valid/"
+val_path = (
+    f"{pdb_data_path}/valid/"
+)
 val_pdb = [
     os.path.join(pth, f) for pth, dirs, files in os.walk(val_path) for f in files
 ]
 
-test_path = "/Users/shaniamitra/Downloads/Struct2Func_v-old/datasets/GeneOntology/test/"
+test_path = train_path = (
+    f"{pdb_data_path}/test/"
+)
 # train_pdb = [os.path.abspath(os.path.join(train_path, p)) for p in os.listdir(train_path)]
 test_pdb = [
     os.path.join(pth, f) for pth, dirs, files in os.walk(test_path) for f in files
 ]
 
-train_pdb = [i for i in train_pdb if os.path.isfile(i)]
-val_pdb = [i for i in val_pdb if os.path.isfile(i)]
-test_pdb = [i for i in test_pdb if os.path.isfile(i)]
+train_pdb = [i for i in train_pdb if os.path.isfile(i)][:5]
+val_pdb = [i for i in val_pdb if os.path.isfile(i)][:5]
+test_pdb = [i for i in test_pdb if os.path.isfile(i)][:5]
 
-go_annot_path = "./datasets/GeneOntology/nrPDB-GO_annot.tsv"
+go_annot_path = "/om2/user/shania/datasets/GeneOntology/nrPDB-GO_annot.tsv"
 train_pdb_names = [path.split("/")[-1].split("_")[0] for path in train_pdb]
 val_pdb_names = [path.split("/")[-1].split("_")[0] for path in val_pdb]
 test_pdb_names = [path.split("/")[-1].split("_")[0] for path in test_pdb]
@@ -53,10 +60,11 @@ test_pdb_names = [path.split("/")[-1].split("_")[0] for path in test_pdb]
 
 def train(config, task, suffix):
 
+    data_path = "/om2/group/kellislab/shared/struct2func/datasets/GeneOntology/"
     # train_set = GoTermDataset("train", task, config.AF2model)
     train_set = GoTermDataset(
         annot_path=go_annot_path,
-        graph_list_file="datasets/train_graphs_GO.pt",
+        graph_list_file=f"{data_path}/train_esm2_t_graphs.pt",
         pdb_id_list=train_pdb_names,
         task=task,
     )
@@ -64,7 +72,7 @@ def train(config, task, suffix):
     # valid_set = GoTermDataset("val", task, config.AF2model)
     valid_set = GoTermDataset(
         annot_path=go_annot_path,
-        graph_list_file="datasets/val_graphs_GO.pt",
+        graph_list_file=f"{data_path}/val_esm2_t_graphs.pt",
         pdb_id_list=val_pdb_names,
         task=task,
     )
@@ -88,10 +96,10 @@ def train(config, task, suffix):
     grpn_num_classes = 1
     grpn = GraphRPN(
         k=2, input_dim=esm_embed_dim, hidden_dim=256, num_classes=1
-    )  # output: pred_scores, pred_nodes, func_proba
+    ).to(config.device)  # output: pred_scores, pred_nodes, func_proba
     func_attention = FunctionalNodeAttentionGNN(
         in_channels=esm_embed_dim, out_channels=esm_embed_dim, device=config.device
-    )  # input: node scores, x, edge_index, batch
+    ).to(config.device)  # input: node scores, x, edge_index, batch
     # output: x
     model = CL_protNET(output_dim, True, config.pooling, config.contrast).to(
         config.device
@@ -116,8 +124,8 @@ def train(config, task, suffix):
             # with torch.autograd.set_detect_anomaly(True):
             model.train()
             # optimizer.zero_grad()
-            # print("batch[0]", batch[0])
-            # print("batch[1]", batch[1])
+            print("batch[0]", batch[0])
+            print("batch[1]", batch[1])
             if config.contrast:
                 y_pred, g_feat1, g_feat2 = model(batch[0].to(config.device))
                 y_true = batch[1].to(config.device)
@@ -135,6 +143,13 @@ def train(config, task, suffix):
                     data.edge_index,
                     data.batch,
                 )
+                print(esm_embeddings.shape, native_x.shape, edge_index.shape, batch_vec.shape)
+                # print('Max index in edge_index:', edge_index.max().item())
+                # print('Number of nodes:', esm_embeddings.size(0))
+                
+                # Ensure no indices are greater than or equal to the number of nodes
+                # assert edge_index.max() < esm_embeddings.size(0), "edge_index contains out-of-bounds indices"
+
                 pred_node_scores, pred_nodes, func_proba = grpn(
                     esm_embeddings, edge_index, batch_vec
                 )

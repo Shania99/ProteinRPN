@@ -47,8 +47,12 @@ class FunctionalNodeAttentionGNN(MessagePassing):
         # Adjust attention based on node type
         # print(col, node_type.dtype)
         print("node type", node_type)
-        node_type = node_type.detach()
-        alpha = alpha.detach()  ####### THROWING ERROR WITHOUT THIS LINE?
+        # node_type = node_type.detach()
+        # col = col.detach()
+        # alpha = alpha.detach()  ####### THROWING ERROR WITHOUT THIS LINE?
+        node_type = node_type.to(self.device)
+        # print("alpha, node_type, col")
+        # print(alpha.is_cuda, node_type.is_cuda, col.is_cuda)
         alpha = alpha * node_type[col] + alpha * (1 - node_type[col]) * 0.5
         # Apply softmax separately for each graph in the batch
         alpha = alpha.to(self.device)
