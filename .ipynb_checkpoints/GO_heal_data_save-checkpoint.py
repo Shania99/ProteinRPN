@@ -30,9 +30,9 @@ test_pdb = [
     os.path.join(pth, f) for pth, dirs, files in os.walk(test_path) for f in files
 ]
 
-train_pdb = [i for i in train_pdb if os.path.isfile(i)]
-val_pdb = [i for i in val_pdb if os.path.isfile(i)]
-test_pdb = [i for i in test_pdb if os.path.isfile(i)]
+train_pdb = [i for i in train_pdb if os.path.isfile(i)][:5]
+val_pdb = [i for i in val_pdb if os.path.isfile(i)][:5]
+test_pdb = [i for i in test_pdb if os.path.isfile(i)][:5]
 
 def construct_and_save(pdb_paths, output_prefix, n_jobs=n_jobs, esm_path=esm_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,10 +47,10 @@ def construct_and_save(pdb_paths, output_prefix, n_jobs=n_jobs, esm_path=esm_pat
 
 
 print("processing train data")
-construct_and_save(train_pdb, os.path.join(out_dir, "train_esm2_v3"))
+construct_and_save(train_pdb, os.path.join(out_dir, "train_esm2_t"))
 
 print("processing validation data")
-construct_and_save(val_pdb, os.path.join(out_dir, "val_esm2_v3"))
+construct_and_save(val_pdb, os.path.join(out_dir, "val_esm2_t"))
 
 print("processing test data")
-construct_and_save(test_pdb, os.path.join(out_dir, "test_esm2_v3"))
+construct_and_save(test_pdb, os.path.join(out_dir, "test_esm2_t"))

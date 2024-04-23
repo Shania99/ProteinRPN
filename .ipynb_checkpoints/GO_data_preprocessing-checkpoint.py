@@ -166,8 +166,7 @@ def get_sequences_and_edges_single(pdb_path, pdb_parser=None):
     if len(seq_idx_list) >= 1000:
         print(len(seq_idx_list))
     ######### TRUNCATE Ca_array to 1022 due to ESM Length
-    Ca_array = np.array(Ca_array)
-    Ca_array = Ca_array[~np.isnan(Ca_array).any(axis=1)] ### removing X residues
+    Ca_array = np.array(Ca_array)[:1022]
     resi_num = Ca_array.shape[0]
     print("resi_num", resi_num)
     print("len ca array", Ca_array.shape)
@@ -228,9 +227,6 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
             token_representations = (
                 results["representations"][33].detach().cpu()
             )
-        for seq in batch_seqs:
-            print("seq", len(seq))
-        print("esm token representations", token_representations.shape)
         embeddings.append(token_representations)
     try:    
         embeddings = torch.cat(embeddings)
@@ -242,9 +238,7 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
     print(len(seqs_filt), len(edges_filt), len(embeddings))
     for i in range(len(seqs_filt)):
         # print(i)
-        print("shape of embed in process_pdb", embeddings[i][1: min(len(seqs_filt[i])+1, 1022)].shape)
-        print("max edge index", np.array(edges_filt[i]).max())
-        print("shape of seqs_filt[i]", len(seqs_filt[i]))
+        # print("shape of embed", embeddings[i][1: min(len(seqs_filt[i])+1, 1022)].shape)
         graphs.append(protein_graph(
             seqs_filt[i], edges_filt[i], embeddings[i][1: min(len(seqs_filt[i])+1, 1022+1)]
         ))
