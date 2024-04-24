@@ -137,7 +137,7 @@ restype_1to3 = {
 
 restype_3to1 = {v: k for k, v in restype_1to3.items()}
 
-def get_sequences_and_edges_single(pdb_path, pdb_parser=None):
+def git push origin main:
     if pdb_parser is None:
         pdb_parser = PDBParser()
     try:
