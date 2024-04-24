@@ -242,9 +242,9 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
     print(len(seqs_filt), len(edges_filt), len(embeddings))
     for i in range(len(seqs_filt)):
         # print(i)
-        print("shape of embed in process_pdb", embeddings[i][1: min(len(seqs_filt[i])+1, 1022)].shape)
-        print("max edge index", np.array(edges_filt[i]).max())
-        print("shape of seqs_filt[i]", len(seqs_filt[i]))
+        # print("shape of embed in process_pdb", embeddings[i][1: min(len(seqs_filt[i])+1, 1022)].shape)
+        # print("max edge index", np.array(edges_filt[i]).max())
+        # print("shape of seqs_filt[i]", len(seqs_filt[i]))
         graphs.append(protein_graph(
             seqs_filt[i], edges_filt[i], embeddings[i][1: min(len(seqs_filt[i])+1, 1022+1)]
         ))
