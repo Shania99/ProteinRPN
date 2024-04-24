@@ -130,7 +130,7 @@ def get_proposed_candidates_batches(
 
         func_nodes = list(set(func_nodes))
 
-        print("func_nodes", func_nodes)
+        # print("func_nodes", func_nodes)
         one_hot_node_type_vec[func_nodes] = 1
         # print("one_hot_node_type_vec_batch", one_hot_node_type_vec_batch)
         # batch_functional_nodes.append(func_nodes)

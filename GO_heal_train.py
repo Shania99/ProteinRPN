@@ -21,7 +21,6 @@ from functional_node_attention import FunctionalNodeAttentionGNN
 from GRPN_processing import get_proposed_candidates_batches
 
 warnings.filterwarnings("ignore")  ## need to change to output vector of 0 and 1
-
 pdb_data_path = "../datasets/GeneOntology" ## add in old file too
 
 
@@ -48,9 +47,9 @@ test_pdb = [
     os.path.join(pth, f) for pth, dirs, files in os.walk(test_path) for f in files
 ]
 
-train_pdb = [i for i in train_pdb if os.path.isfile(i)][:5]
-val_pdb = [i for i in val_pdb if os.path.isfile(i)][:5]
-test_pdb = [i for i in test_pdb if os.path.isfile(i)][:5]
+train_pdb = [i for i in train_pdb if os.path.isfile(i)]
+val_pdb = [i for i in val_pdb if os.path.isfile(i)]
+test_pdb = [i for i in test_pdb if os.path.isfile(i)]
 
 go_annot_path = "/om2/user/shania/datasets/GeneOntology/nrPDB-GO_annot.tsv"
 train_pdb_names = [path.split("/")[-1].split("_")[0] for path in train_pdb]
@@ -60,11 +59,12 @@ test_pdb_names = [path.split("/")[-1].split("_")[0] for path in test_pdb]
 
 def train(config, task, suffix):
 
-    data_path = "/om2/group/kellislab/shared/struct2func/datasets/GeneOntology/"
+    # data_path = "/om2/group/kellislab/shared/struct2func/datasets/GeneOntology/"
+    data_path = "/om/user/layne_h/project/protein_function/datasets/GeneOntology"
     # train_set = GoTermDataset("train", task, config.AF2model)
     train_set = GoTermDataset(
         annot_path=go_annot_path,
-        graph_list_file=f"{data_path}/train_esm2_t_graphs.pt",
+        graph_list_file=f"{data_path}/train_graphs.pt",
         pdb_id_list=train_pdb_names,
         task=task,
     )
@@ -72,7 +72,7 @@ def train(config, task, suffix):
     # valid_set = GoTermDataset("val", task, config.AF2model)
     valid_set = GoTermDataset(
         annot_path=go_annot_path,
-        graph_list_file=f"{data_path}/val_esm2_t_graphs.pt",
+        graph_list_file=f"{data_path}/val_graphs.pt",
         pdb_id_list=val_pdb_names,
         task=task,
     )
@@ -124,8 +124,8 @@ def train(config, task, suffix):
             # with torch.autograd.set_detect_anomaly(True):
             model.train()
             # optimizer.zero_grad()
-            print("batch[0]", batch[0])
-            print("batch[1]", batch[1])
+            # print("batch[0]", batch[0])
+            # print("batch[1]", batch[1])
             if config.contrast:
                 y_pred, g_feat1, g_feat2 = model(batch[0].to(config.device))
                 y_true = batch[1].to(config.device)
@@ -144,8 +144,8 @@ def train(config, task, suffix):
                     data.batch,
                 )
                 print(esm_embeddings.shape, native_x.shape, edge_index.shape, batch_vec.shape)
-                # print('Max index in edge_index:', edge_index.max().item())
-                # print('Number of nodes:', esm_embeddings.size(0))
+                print('Max index in edge_index:', edge_index.max().item())
+                print('Number of nodes:', esm_embeddings.size(0))
                 
                 # Ensure no indices are greater than or equal to the number of nodes
                 # assert edge_index.max() < esm_embeddings.size(0), "edge_index contains out-of-bounds indices"

@@ -169,8 +169,8 @@ def get_sequences_and_edges_single(pdb_path, pdb_parser=None):
     Ca_array = np.array(Ca_array)
     Ca_array = Ca_array[~np.isnan(Ca_array).any(axis=1)] ### removing X residues
     resi_num = Ca_array.shape[0]
-    print("resi_num", resi_num)
-    print("len ca array", Ca_array.shape)
+    # print("resi_num", resi_num)
+    # print("len ca array", Ca_array.shape)
     if resi_num <= 1:
         return None, None
     G = np.dot(Ca_array, Ca_array.T)
@@ -179,8 +179,8 @@ def get_sequences_and_edges_single(pdb_path, pdb_parser=None):
 
     row, col = np.where(dismap <= 10)
     edge = [row, col]
-    print('Max index in edge_index:', np.array(edge).max())
-    print('Number of nodes:', len(Ca_array))
+    # print('Max index in edge_index:', np.array(edge).max())
+    # print('Number of nodes:', len(Ca_array))
     
     # Ensure no indices are greater than or equal to the number of nodes
     assert np.array(edge).max() < len(Ca_array), "edge_index contains out-of-bounds indices"
@@ -228,9 +228,9 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
             token_representations = (
                 results["representations"][33].detach().cpu()
             )
-        for seq in batch_seqs:
-            print("seq", len(seq))
-        print("esm token representations", token_representations.shape)
+        # for seq in batch_seqs:
+        #     print("seq", len(seq))
+        # print("esm token representations", token_representations.shape)
         embeddings.append(token_representations)
     try:    
         embeddings = torch.cat(embeddings)
@@ -242,9 +242,9 @@ def process_pdb(pdb_paths, n_jobs=None, device="cpu", esm_path=None, batch_size=
     print(len(seqs_filt), len(edges_filt), len(embeddings))
     for i in range(len(seqs_filt)):
         # print(i)
-        print("shape of embed in process_pdb", embeddings[i][1: min(len(seqs_filt[i])+1, 1022)].shape)
-        print("max edge index", np.array(edges_filt[i]).max())
-        print("shape of seqs_filt[i]", len(seqs_filt[i]))
+        # print("shape of embed in process_pdb", embeddings[i][1: min(len(seqs_filt[i])+1, 1022)].shape)
+        # print("max edge index", np.array(edges_filt[i]).max())
+        # print("shape of seqs_filt[i]", len(seqs_filt[i]))
         graphs.append(protein_graph(
             seqs_filt[i], edges_filt[i], embeddings[i][1: min(len(seqs_filt[i])+1, 1022+1)]
         ))
