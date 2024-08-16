@@ -1,1 +1,1 @@
-# Struct2Func
+# ProteinRPN
